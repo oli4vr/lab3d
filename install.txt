@@ -1,0 +1,12 @@
+3D Cursed Labyrinth v0.1
+by Olivier Van Rompuy
+
+Requirements :
+--------------
+- ncurses library
+...that is all
+
+Installation Procedure :
+------------------------
+make
+make install
