@@ -16,4 +16,4 @@ make
 make install
 ```
 
-![Alt text](lab3d.png)   
+![Alt text](lab3d.png?v=2)   
