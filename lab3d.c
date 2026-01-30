@@ -1,17 +1,24 @@
+#define _XOPEN_SOURCE_EXTENDED
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
-#include <ncurses.h>
+#include <wchar.h>
+#include <ncursesw/ncurses.h>
 #include <signal.h>
+#include <locale.h>
 
-#define MAP_H	128
-#define MAP_W	128
+#define MAP_H	512
+#define MAP_W	512
+#define MIDDLE_H	((MAP_H >> 1) -1)
+#define MIDDLE_W	((MAP_W >> 1) -1)
 
 #define SWIDTH  40
 #define SHEIGHT  40
+#define DWIDTH  (SWIDTH * 2)
 
 unsigned char map[MAP_H*MAP_W];
+unsigned char pmap[MAP_H*MAP_W];
 
 int get_map(int x,int y)
 {
@@ -26,6 +33,19 @@ void clear_map()
  memset(map,1,MAP_H*MAP_W);
 }
 
+int get_pmap(int x,int y)
+{
+ return pmap[(y*MAP_H)+x];
+}
+void set_pmap(int x,int y,int val)
+{
+ pmap[(y*MAP_H)+x]=val;
+}
+void clear_pmap()
+{
+ memset(pmap,1,MAP_H*MAP_W);
+}
+
 int check_borders(int x,int y)
 {
  if (x<1 || x>(MAP_W-2) || y<1 || y>(MAP_H-2)) return 0;
@@ -38,8 +58,9 @@ int check_borders(int x,int y)
 
 int create_lab(int num)
 {
- int n=0,x=63,y=63,newx,newy;
+ int n=0,x=MIDDLE_W,y=MIDDLE_H,newx,newy;
  clear_map();
+ clear_pmap();
  srand(time(0));
  set_map(x,y,2);
  for(;n<num;n++)
@@ -70,52 +91,15 @@ int create_lab(int num)
  set_map(x,y,3);
 }
 
-int draw_lab(int x,int y,int xd,int yd,int dir)
+int draw_lab(int xo,int yo,int xd,int yd,int diro)
 {
  unsigned char c;
  int xn,yn,xr,yr,xl,yl,xnl,ynl,xnr,ynr;
+ int x=xo,y=yo,dir=diro;
  int ccx=SWIDTH/2,ccy=SWIDTH/2,dpos=SWIDTH/2,dposn,xb;
  clear();
- xr=0;
- for(xn=x-5;xn<=x+5;xn++)
- {
-  yr=0;
-  for(yn=y-5;yn<=y+5;yn++)
-  {
-   if (xn>=0 && xn<MAP_W && yn>=0 && yn<MAP_H)
-   {
-    switch (get_map(xn,yn))
-    {
-     case 1:
-      attrset(A_REVERSE);
-      mvaddch(yr+1,SWIDTH+4+xr,' ');
-      break;
-     case 3:
-      attrset(A_NORMAL);
-      mvaddch(yr+1,SWIDTH+4+xr,'E');
-      break;
-    }
-   }
-   yr++;
-  }
-  xr++;
- }
- attrset(A_NORMAL);
- switch (dir)
- {
-  case 0:
-   mvaddch(6,SWIDTH+9,'>');
-   break;
-  case 1:
-   mvaddch(6,SWIDTH+9,'v');
-   break;
-  case 2:
-   mvaddch(6,SWIDTH+9,'<');
-   break;
-  case 3:
-   mvaddch(6,SWIDTH+9,'^');
-   break;
- }
+
+  
  
  do {
   xn=x+xd;
@@ -131,61 +115,124 @@ int draw_lab(int x,int y,int xd,int yd,int dir)
 
   dposn=dpos/2;
   dpos--;
+  set_pmap(xl,yl,get_map(xl,yl));
+  set_pmap(xr,yr,get_map(xr,yr));
   for(;dpos>dposn;dpos--)
   {
    if (get_map(xl,yl)==1)
    {
     attrset(A_NORMAL);
-    mvaddch(ccy-dpos,ccx-dpos,'\\');
-    mvaddch(ccy+dpos,ccx-dpos,'/');
+    mvaddwstr(ccy-dpos,2*(ccx-dpos),L"▀▄");
+    mvaddwstr(ccy+dpos,2*(ccx-dpos),L"▄▀");
    }
    else {
-     attrset(A_REVERSE);
-     mvaddch(ccy-dposn,ccx-dpos,' ');
-     attrset(A_REVERSE);
-     mvaddch(ccy+dposn,ccx-dpos,' ');
+     attrset(A_NORMAL);
+     mvaddwstr(ccy+dposn,2*(ccx-dpos)-1,L"▄▄▄");
+     attrset(A_NORMAL);
+     mvaddwstr(ccy-dposn,2*(ccx-dpos)-1,L"▀▀▀");
    }
    if (get_map(xr,yr)==1)
    {
     attrset(A_NORMAL);
-    mvaddch(ccy-dpos,ccx+dpos,'/');
-    mvaddch(ccy+dpos,ccx+dpos,'\\');
+    mvaddwstr(ccy-dpos,2*(ccx+dpos),L"▄▀");
+    mvaddwstr(ccy+dpos,2*(ccx+dpos),L"▀▄");
    }
    else {
-     attrset(A_REVERSE);
-     mvaddch(ccy-dposn,ccx+dpos,' ');
-     attrset(A_REVERSE);
-     mvaddch(ccy+dposn,ccx+dpos,' ');
+     attrset(A_NORMAL);
+     mvaddwstr(ccy+dposn,2*(ccx+dpos),L"▄▄▄");
+     attrset(A_NORMAL);
+     mvaddwstr(ccy-dposn,2*(ccx+dpos),L"▀▀▀");
    }
   }
-  if (get_map(xn,yn)==3)
+  if (get_map(xn,yn)==3) {
    c='E';
-  else
-   c=' ';
+  } else { c=' '; }
   for(xb=ccx-dpos;xb<=ccx+dpos;xb++)
   {
+   attrset(A_NORMAL);
+   mvaddwstr(ccy-dpos,2*xb,L"▀▀");
+   mvaddwstr(ccy+dpos,2*xb,L"▄▄");
    attrset(A_REVERSE);
-   mvaddch(ccy-dpos,xb,c);
-   mvaddch(ccy+dpos,xb,c);
-   mvaddch(xb,ccx-dpos,c);
-   mvaddch(xb,ccy+dpos,c);
+   mvaddch(xb,2*(ccx-dpos),c);
+   mvaddch(xb,2*(ccy+dpos)+1,c);
   }
+  attrset(A_REVERSE);
+  mvaddch(ccx-dpos,2*(ccy+dpos)+1,c);
+  if (get_map(xn,yn)!=1) {
+   if (get_map(xnl,ynl)==1) {
+    mvaddch(ccx-dpos,2*(ccx-dpos)+1,' ');
+    mvaddch(ccx+dpos,2*(ccx-dpos)+1,' ');
+   }
+   if (get_map(xnr,ynr)==1) {
+    mvaddch(ccx+dpos,2*(ccx+dpos),' ');
+    mvaddch(ccx-dpos,2*(ccx+dpos),' ');
+   }
+  }
+
+  set_pmap(x,y,get_map(x,y));
   x+=xd;
   y+=yd;
  } while (get_map(x,y)!=1 && dpos>1);
  attrset(A_INVIS);
  move(SWIDTH+1,SWIDTH+1);
 
+ //Draw Player MAP
+ x=xo,y=yo,dir=diro;
+ xr=0;
+ for(xn=x-5;xn<=x+5;xn++)
+ {
+  yr=0;
+  for(yn=y-5;yn<=y+5;yn++)
+  {
+   if (xn>=0 && xn<MAP_W && yn>=0 && yn<MAP_H)
+   {
+    switch (get_pmap(xn,yn))
+    {
+     case 1:
+      attrset(A_REVERSE);
+      mvaddch(yr+1,DWIDTH+4+xr,' ');
+      break;
+     case 3:
+      attrset(A_NORMAL);
+      mvaddch(yr+1,DWIDTH+4+xr,'E');
+      break;
+    }
+   }
+   yr++;
+  }
+  xr++;
+ }
+ attrset(A_NORMAL);
+ switch (dir)
+ {
+  case 0:
+   mvaddch(6,DWIDTH+9,'>');
+   break;
+  case 1:
+   mvaddch(6,DWIDTH+9,'v');
+   break;
+  case 2:
+   mvaddch(6,DWIDTH+9,'<');
+   break;
+  case 3:
+   mvaddch(6,DWIDTH+9,'^');
+   break;
+ } // End player MAP
+
  return 0;
 }
 
-static void finish(int sig);
+void finish(int sig)
+{
+    endwin();
+    exit(0);
+}
 
 int main(int argc, char *argv[])
 {
     FILE * fp;
     int num = 0;
-    int x=63,y=63,xd=1,yd=0,xn,yn,tmp;
+    int x=MIDDLE_W,y=MIDDLE_H,xd=1,yd=0,xn,yn,tmp;
     int pen=0;
     int c;
     unsigned int key,dir=0;
@@ -194,10 +241,14 @@ int main(int argc, char *argv[])
 
 
     /* initialize your non-curses data structures here */
+    setlocale(LC_ALL, "en_US.UTF-8");
+//    setlocale(LC_CTYPE, "UTF-8");
 
     signal(SIGINT, finish);     
 
+
     initscr();      /* initialize the curses library */
+    //start_color();
     keypad(stdscr, TRUE);  /* enable keyboard mapping */
     nonl();         /* tell curses not to do NL->CR/NL on output */
     cbreak();       /* take input chars one at a time, no wait for \n */
@@ -206,7 +257,7 @@ int main(int argc, char *argv[])
     while (1)
     {
      create_lab(compl);
-     x=63;y=63;
+     x=MIDDLE_W;y=MIDDLE_H;
      while(get_map(x,y)!=3)
      {
       switch (dir)
@@ -230,7 +281,7 @@ int main(int argc, char *argv[])
       }
       draw_lab(x,y,xd,yd,dir);
       attrset(A_NORMAL);
-      move(0,SWIDTH+4);
+      move(0,SWIDTH*2+4);
       printw("LEVEL %d",level);
       move(SWIDTH,0);
       xn=x+xd;
@@ -257,13 +308,3 @@ int main(int argc, char *argv[])
 
    finish(0);               /* we're done */
 }
-
-static void finish(int sig)
-{
-    endwin();
-
-    /* do your non-curses wrapup here */
-
-    exit(0);
-}
-
