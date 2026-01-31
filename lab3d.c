@@ -16,9 +16,55 @@
 #define SWIDTH  40
 #define SHEIGHT  40
 #define DWIDTH  (SWIDTH * 2)
+#define DHEIGHT  (SHEIGHT * 2)
 
 unsigned char map[MAP_H*MAP_W];
 unsigned char pmap[MAP_H*MAP_W];
+
+void print_food() {
+    attrset(A_NORMAL);
+    //mvaddwstr(SHEIGHT-1,SWIDTH-2,L"🥕🍗");
+    mvaddwstr(SHEIGHT-2,SWIDTH-2,L"▄▓▄");
+    mvaddwstr(SHEIGHT-1,SWIDTH-2,L"▒░▒");
+    mvaddwstr(SHEIGHT,SWIDTH-2,L"▒▒▒ FOOD");
+}
+
+void print_drink() {
+    attrset(A_NORMAL);
+//    mvaddwstr(SHEIGHT-1,SWIDTH-1,L"🍺");
+    mvaddwstr(SHEIGHT-1,SWIDTH-3,L"░░░░");
+    mvaddwstr(SHEIGHT,SWIDTH-4,L"░░░░ WATER");
+}
+
+typedef struct _inventory_item {
+  char name[16];
+  unsigned int value[16];
+  void (*action)(void*);
+} inventory_item;
+
+typedef struct _player_stats {
+  int health;
+  int armor;
+  int food;
+  int water;
+  int steps;
+} player_stats;
+
+player_stats player;
+
+typedef struct _enemy {
+  int health;
+  int attack;
+  int armor;
+} enemy;
+
+void init_player() {
+  player.health=100;
+  player.armor=0;
+  player.food=50;
+  player.water=50;
+  player.steps=0;
+}
 
 int get_map(int x,int y)
 {
@@ -44,6 +90,22 @@ void set_pmap(int x,int y,int val)
 void clear_pmap()
 {
  memset(pmap,1,MAP_H*MAP_W);
+}
+
+int player_action(int x,int y,unsigned char dir,player_stats *p) {
+  if (get_map(x,y)==4) {
+    set_map(x,y,0);
+    p->food+=15+(rand()&15);
+    if (p->food > 100) p->food=100;
+    return 1;
+  }
+  if (get_map(x,y)==5) {
+    set_map(x,y,0);
+    p->water+=15+(rand()&15);
+    if (p->water > 100) p->water=100;
+    return 2;
+  }
+  return 0;
 }
 
 int check_borders(int x,int y)
@@ -86,6 +148,12 @@ int create_lab(int num)
   {
    x=newx;
    y=newy;
+  }
+  if ((rand()&15)==0) {
+   set_map(x,y,4); //Food
+  }
+  if ((rand()&15)==0) {
+   set_map(x,y,5); //Water
   }
  }
  set_map(x,y,3);
@@ -173,6 +241,17 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
   x+=xd;
   y+=yd;
  } while (get_map(x,y)!=1 && dpos>1);
+
+ switch (get_map(xo,yo)) {
+  case (4) :
+    print_food();
+   break;;
+  case (5) :
+    print_drink();
+   break;;
+ }
+
+
  attrset(A_INVIS);
  move(SWIDTH+1,SWIDTH+1);
 
@@ -195,6 +274,14 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
      case 3:
       attrset(A_NORMAL);
       mvaddch(yr+1,DWIDTH+4+xr,'E');
+      break;
+     case 4:
+      attrset(A_NORMAL);
+      mvaddch(yr+1,DWIDTH+4+xr,'F');
+      break;
+     case 5:
+      attrset(A_NORMAL);
+      mvaddch(yr+1,DWIDTH+4+xr,'D');
       break;
     }
    }
@@ -228,6 +315,21 @@ void finish(int sig)
     exit(0);
 }
 
+int end_turn(player_stats *p) {
+  if (p->food==0) {p->health-=1;}
+  if (p->water==0) {p->health-=2;}
+  if (p->food > 0) {
+    p->food-=2;
+    p->water-=3;
+  }
+  if (p->food<0) p->food=0;
+  if (p->water<0) p->water=0;
+  if (p->health<0) p->health=0;
+  if (p->health==0) return 1;
+  p->steps++;
+  return 0;
+}
+
 int main(int argc, char *argv[])
 {
     FILE * fp;
@@ -242,7 +344,7 @@ int main(int argc, char *argv[])
 
     /* initialize your non-curses data structures here */
     setlocale(LC_ALL, "en_US.UTF-8");
-//    setlocale(LC_CTYPE, "UTF-8");
+    setlocale(LC_CTYPE, "en_US.UTF-8");
 
     signal(SIGINT, finish);     
 
@@ -253,6 +355,8 @@ int main(int argc, char *argv[])
     nonl();         /* tell curses not to do NL->CR/NL on output */
     cbreak();       /* take input chars one at a time, no wait for \n */
     curs_set(0);
+
+    init_player();
 
     while (1)
     {
@@ -283,6 +387,16 @@ int main(int argc, char *argv[])
       attrset(A_NORMAL);
       move(0,SWIDTH*2+4);
       printw("LEVEL %d",level);
+      move(12,SWIDTH*2+4);
+      printw("HEALTH  %3d",player.health);
+      move(13,SWIDTH*2+4);
+      printw("FOOD    %3d",player.food);
+      move(14,SWIDTH*2+4);
+      printw("WATER   %3d",player.water);
+      move(20,SWIDTH*2+4);
+      printw("ARROW KEYS = MOVE");
+      move(21,SWIDTH*2+4);
+      printw("SPACE = USE ITEM");
       move(SWIDTH,0);
       xn=x+xd;
       yn=y+yd;
@@ -290,14 +404,25 @@ int main(int argc, char *argv[])
       switch(key)
       {
        case 259:
-        if (get_map(xn,yn)!=1)
-         { x=xn; y=yn; }
+         if (get_map(xn,yn)!=1) {
+           x=xn; y=yn; 
+           if (end_turn(&player)==1) {
+           attrset(A_NORMAL);
+           endwin();
+           printf("YOU DIED!!! End of Game\n");
+           printf("You lasted %d steps and got to level %d\n\n",player.steps,level);
+           exit(0);
+          }
+         }
         break;
        case 260:
         dir=(dir-1)&3;
         break;
        case 261:
         dir=(dir+1)&3;
+        break;
+       case ' ':
+        player_action(x,y,dir,&player);
         break;
       }
      }
