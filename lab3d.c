@@ -157,7 +157,6 @@ int create_lab(int num)
  clear_map();
  clear_pmap();
  srand(time(0));
- set_map(x,y,2);
  for(;n<num;n++)
  {
   if (get_map(x,y)==1)
@@ -198,6 +197,7 @@ int create_lab(int num)
   }
   cstep++;
  }
+ set_map(MIDDLE_W,MIDDLE_H,2);
  set_map(x,y,3);
 }
 
