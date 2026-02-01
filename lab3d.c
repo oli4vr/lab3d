@@ -23,7 +23,6 @@ unsigned char pmap[MAP_H*MAP_W];
 
 void print_food() {
     attrset(A_NORMAL);
-    //mvaddwstr(SHEIGHT-1,SWIDTH-2,L"🥕🍗");
     mvaddwstr(SHEIGHT-2,SWIDTH-2,L"▄▓▄");
     mvaddwstr(SHEIGHT-1,SWIDTH-2,L"▒░▒");
     mvaddwstr(SHEIGHT,SWIDTH-2,L"▒▒▒ FOOD");
@@ -31,9 +30,36 @@ void print_food() {
 
 void print_drink() {
     attrset(A_NORMAL);
-//    mvaddwstr(SHEIGHT-1,SWIDTH-1,L"🍺");
     mvaddwstr(SHEIGHT-1,SWIDTH-3,L"░░░░");
     mvaddwstr(SHEIGHT,SWIDTH-4,L"░░░░ WATER");
+}
+
+void print_potion() {
+    attrset(A_NORMAL);
+    mvaddwstr(SHEIGHT-3,SWIDTH-2,L" ▄ ");
+    mvaddwstr(SHEIGHT-2,SWIDTH-2,L"▄█▄");
+    mvaddwstr(SHEIGHT-1,SWIDTH-2,L"█▒█ POTION");
+    mvaddwstr(SHEIGHT  ,SWIDTH-2,L"▀▀▀");
+}
+
+void print_enemy() {
+    attrset(A_NORMAL);
+    mvaddwstr(SHEIGHT-19,SWIDTH-3,L" █▄ ▄█");
+    mvaddwstr(SHEIGHT-18,SWIDTH-3,L" █░█░█");
+    mvaddwstr(SHEIGHT-17,SWIDTH-3,L" ▀█▄█▀");
+    mvaddwstr(SHEIGHT-16,SWIDTH-3,L" ▄███▄   ▄");
+    mvaddwstr(SHEIGHT-15,SWIDTH-3,L"░░███ ▀▄▀");
+    mvaddwstr(SHEIGHT-14,SWIDTH-3,L"░░███ ▀");
+    mvaddwstr(SHEIGHT-13,SWIDTH-3,L"  █ █");
+    mvaddwstr(SHEIGHT-12 ,SWIDTH-3,L" ▄█ █▄");
+}
+
+void print_enemy2() {
+    attrset(A_NORMAL);
+    mvaddwstr((SHEIGHT>>1)+1,SWIDTH-1,L"█▄█");
+    mvaddwstr((SHEIGHT>>1)+2,SWIDTH-1,L"▀▄▀");
+    mvaddwstr((SHEIGHT>>1)+3,SWIDTH-1,L"░██▄▀");
+    mvaddwstr((SHEIGHT>>1)+4,SWIDTH-1,L"▀ ▀");
 }
 
 typedef struct _inventory_item {
@@ -92,18 +118,24 @@ void clear_pmap()
  memset(pmap,1,MAP_H*MAP_W);
 }
 
-int player_action(int x,int y,unsigned char dir,player_stats *p) {
-  if (get_map(x,y)==4) {
+int player_action(int x,int y,player_stats *p) {
+  int curxy=get_map(x,y);
+  switch (curxy) {
+   case 4:
     set_map(x,y,0);
     p->food+=15+(rand()&15);
     if (p->food > 100) p->food=100;
     return 1;
-  }
-  if (get_map(x,y)==5) {
+   case 5:
     set_map(x,y,0);
     p->water+=15+(rand()&15);
     if (p->water > 100) p->water=100;
     return 2;
+   case 6:
+    set_map(x,y,0);
+    p->health+=10+(rand()&10);
+    if (p->health > 100) p->health=100;
+    return 3;
   }
   return 0;
 }
@@ -121,6 +153,7 @@ int check_borders(int x,int y)
 int create_lab(int num)
 {
  int n=0,x=MIDDLE_W,y=MIDDLE_H,newx,newy;
+ int cstep=0;
  clear_map();
  clear_pmap();
  srand(time(0));
@@ -149,12 +182,21 @@ int create_lab(int num)
    x=newx;
    y=newy;
   }
-  if ((rand()&15)==0) {
-   set_map(x,y,4); //Food
+  if (cstep>3) {
+   if ((rand()&15)==0) {
+    set_map(x,y,6); //Potion
+   }
+   if ((rand()%9)==0) {
+    set_map(x,y,5); //Water
+   }
+   if ((rand()%10)==0) {
+    set_map(x,y,4); //Food
+   }
+   if ((rand()&15)==0) {
+     set_map(x,y,7); //Enemy
+   }
   }
-  if ((rand()&15)==0) {
-   set_map(x,y,5); //Water
-  }
+  cstep++;
  }
  set_map(x,y,3);
 }
@@ -165,6 +207,8 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
  int xn,yn,xr,yr,xl,yl,xnl,ynl,xnr,ynr;
  int x=xo,y=yo,dir=diro;
  int ccx=SWIDTH/2,ccy=SWIDTH/2,dpos=SWIDTH/2,dposn,xb;
+ unsigned char curxy;
+ unsigned char denemy=0;
  clear();
 
   
@@ -183,6 +227,9 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
 
   dposn=dpos/2;
   dpos--;
+
+  curxy=get_map(xn,yn);
+
   set_pmap(xl,yl,get_map(xl,yl));
   set_pmap(xr,yr,get_map(xr,yr));
   for(;dpos>dposn;dpos--)
@@ -236,6 +283,26 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
     mvaddch(ccx-dpos,2*(ccx+dpos),' ');
    }
   }
+  switch (curxy) {
+    case 4:
+    case 5:
+    case 6:
+     if (dposn>4) {
+      attrset(A_NORMAL);
+      mvaddwstr((SHEIGHT>>1)+dposn-1,SWIDTH,L"░░");
+     }
+    break;
+    case 7:
+     switch (dposn) {
+      case 10:
+       denemy=1;
+      break;
+      case 5:
+       if (denemy==0) denemy=2;
+      break;
+     }
+    break;
+  }
 
   set_pmap(x,y,get_map(x,y));
   x+=xd;
@@ -249,6 +316,18 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
   case (5) :
     print_drink();
    break;;
+  case (6) :
+    print_potion();
+   break;;
+ }
+
+ switch (denemy) {
+  case 1:
+    print_enemy();
+   break;
+  case 2:
+    print_enemy2();
+   break;
  }
 
 
@@ -283,6 +362,14 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
       attrset(A_NORMAL);
       mvaddch(yr+1,DWIDTH+4+xr,'D');
       break;
+     case 6:
+      attrset(A_NORMAL);
+      mvaddch(yr+1,DWIDTH+4+xr,'P');
+      break;
+     case 7:
+      attrset(A_NORMAL);
+      mvaddch(yr+1,DWIDTH+4+xr,'*');
+      break;
     }
    }
    yr++;
@@ -315,8 +402,15 @@ void finish(int sig)
     exit(0);
 }
 
-int end_turn(player_stats *p) {
-  if (p->food==0) {p->health-=1;}
+int end_turn(player_stats *p,int x,int y,int xn,int yn) {
+  if (get_map(xn,yn)==7 && (((rand()&3)==0) || (rand()&3)==0)) {
+    set_map(xn,yn,0);
+    set_pmap(xn,yn,0);
+  }
+  if (get_map(x+1,y)==7 || get_map(x-1,y)==7 || get_map(x,y+1)==7 || get_map(x,y-1)==7) {
+   p->health-=3+(rand()&7);
+  }
+  if (p->food==0) {p->health-=2;}
   if (p->water==0) {p->health-=2;}
   if (p->food > 0) {
     p->food-=2;
@@ -340,6 +434,7 @@ int main(int argc, char *argv[])
     unsigned int key,dir=0;
     int compl=30;
     int level=1;
+    int valxy;
 
 
     /* initialize your non-curses data structures here */
@@ -404,9 +499,10 @@ int main(int argc, char *argv[])
       switch(key)
       {
        case 259:
-         if (get_map(xn,yn)!=1) {
-           x=xn; y=yn; 
-           if (end_turn(&player)==1) {
+         valxy=get_map(xn,yn);
+         if (valxy!=1) {
+           if (valxy!=7) {x=xn; y=yn;}
+           if (end_turn(&player,x,y,xn,yn)==1) {
            attrset(A_NORMAL);
            endwin();
            printf("YOU DIED!!! End of Game\n");
@@ -422,7 +518,7 @@ int main(int argc, char *argv[])
         dir=(dir+1)&3;
         break;
        case ' ':
-        player_action(x,y,dir,&player);
+        player_action(x,y,&player);
         break;
       }
      }
