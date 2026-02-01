@@ -408,7 +408,7 @@ int end_turn(player_stats *p,int x,int y,int xn,int yn) {
     set_pmap(xn,yn,0);
   }
   if (get_map(x+1,y)==7 || get_map(x-1,y)==7 || get_map(x,y+1)==7 || get_map(x,y-1)==7) {
-   p->health-=3+(rand()&7);
+   p->health-=3+(rand()&3);
   }
   if (p->food==0) {p->health-=2;}
   if (p->water==0) {p->health-=2;}
@@ -482,16 +482,18 @@ int main(int argc, char *argv[])
       attrset(A_NORMAL);
       move(0,SWIDTH*2+4);
       printw("LEVEL %d",level);
-      move(12,SWIDTH*2+4);
-      printw("HEALTH  %3d",player.health);
       move(13,SWIDTH*2+4);
-      printw("FOOD    %3d",player.food);
+      printw("HEALTH  %3d",player.health);
       move(14,SWIDTH*2+4);
+      printw("FOOD    %3d",player.food);
+      move(15,SWIDTH*2+4);
       printw("WATER   %3d",player.water);
-      move(20,SWIDTH*2+4);
+      move(20,SWIDTH*2+1);
       printw("ARROW KEYS = MOVE");
-      move(21,SWIDTH*2+4);
+      move(21,SWIDTH*2+1);
       printw("SPACE = USE ITEM");
+      move(22,SWIDTH*2+1);
+      printw("ATTACK = FORWARD");
       move(SWIDTH,0);
       xn=x+xd;
       yn=y+yd;
