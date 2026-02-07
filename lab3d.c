@@ -42,6 +42,19 @@ void print_potion() {
     mvaddwstr(SHEIGHT  ,SWIDTH-2,L"▀▀▀");
 }
 
+void print_exit() {
+    attrset(A_NORMAL);
+    mvaddwstr(SHEIGHT-13,SWIDTH-3,L" █▄▄█");
+    mvaddwstr(SHEIGHT-12,SWIDTH-3,L"░█░░█░");
+    mvaddwstr(SHEIGHT-11,SWIDTH-3,L"░█▀▀█░");
+}
+
+void print_exit2() {
+    attrset(A_NORMAL);
+    mvaddwstr((SHEIGHT>>1)+3,SWIDTH-1,L"▄ ▄");
+    mvaddwstr((SHEIGHT>>1)+4,SWIDTH-1,L"░▀░");
+}
+
 void print_enemy() {
     attrset(A_NORMAL);
     mvaddwstr(SHEIGHT-19,SWIDTH-3,L" █▄ ▄█");
@@ -51,7 +64,7 @@ void print_enemy() {
     mvaddwstr(SHEIGHT-15,SWIDTH-3,L"░░███ ▀▄▀");
     mvaddwstr(SHEIGHT-14,SWIDTH-3,L"░░███ ▀");
     mvaddwstr(SHEIGHT-13,SWIDTH-3,L"  █ █");
-    mvaddwstr(SHEIGHT-12 ,SWIDTH-3,L" ▄█ █▄");
+    mvaddwstr(SHEIGHT-12,SWIDTH-3,L" ▄█ █▄");
 }
 
 void print_enemy2() {
@@ -208,7 +221,7 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
  int x=xo,y=yo,dir=diro;
  int ccx=SWIDTH/2,ccy=SWIDTH/2,dpos=SWIDTH/2,dposn,xb;
  unsigned char curxy;
- unsigned char denemy=0;
+ unsigned char denemy=0,dexit=0;
  clear();
 
   
@@ -259,20 +272,17 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
      mvaddwstr(ccy-dposn,2*(ccx+dpos),L"▀▀▀");
    }
   }
-  if (get_map(xn,yn)==3) {
-   c='E';
-  } else { c=' '; }
   for(xb=ccx-dpos;xb<=ccx+dpos;xb++)
   {
    attrset(A_NORMAL);
    mvaddwstr(ccy-dpos,2*xb,L"▀▀");
    mvaddwstr(ccy+dpos,2*xb,L"▄▄");
    attrset(A_REVERSE);
-   mvaddch(xb,2*(ccx-dpos),c);
-   mvaddch(xb,2*(ccy+dpos)+1,c);
+   mvaddch(xb,2*(ccx-dpos),' ');
+   mvaddch(xb,2*(ccy+dpos)+1,' ');
   }
   attrset(A_REVERSE);
-  mvaddch(ccx-dpos,2*(ccy+dpos)+1,c);
+  mvaddch(ccx-dpos,2*(ccy+dpos)+1,' ');
   if (get_map(xn,yn)!=1) {
    if (get_map(xnl,ynl)==1) {
     mvaddch(ccx-dpos,2*(ccx-dpos)+1,' ');
@@ -302,6 +312,16 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
       break;
      }
     break;
+    case 3:
+     switch (dposn) {
+      case 10:
+       dexit=1;
+      break;
+      case 5:
+       if (dexit==0) dexit=2;
+      break;
+     }
+    break;
   }
 
   set_pmap(x,y,get_map(x,y));
@@ -321,15 +341,10 @@ int draw_lab(int xo,int yo,int xd,int yd,int diro)
    break;;
  }
 
- switch (denemy) {
-  case 1:
-    print_enemy();
-   break;
-  case 2:
-    print_enemy2();
-   break;
- }
-
+ if (denemy==2) print_enemy2();
+ if (dexit==2) print_exit2();
+ if (denemy==1) print_enemy();
+ if (dexit==1) print_exit();
 
  attrset(A_INVIS);
  move(SWIDTH+1,SWIDTH+1);
@@ -482,17 +497,21 @@ int main(int argc, char *argv[])
       attrset(A_NORMAL);
       move(0,SWIDTH*2+4);
       printw("LEVEL %d",level);
-      move(13,SWIDTH*2+4);
+      /*
+      move(13,DWIDTH+4);
       printw("HEALTH  %3d",player.health);
-      move(14,SWIDTH*2+4);
+      move(14,DWIDTH+4);
       printw("FOOD    %3d",player.food);
-      move(15,SWIDTH*2+4);
+      move(15,DWIDTH+4);
       printw("WATER   %3d",player.water);
-      move(20,SWIDTH*2+1);
+      */
+      move(41,SWIDTH-17);
+      printw("HEALTH %3d  FOOD %3d  WATER %3d",player.health,player.food,player.water);
+      move(35,DWIDTH+1);
       printw("ARROW KEYS = MOVE");
-      move(21,SWIDTH*2+1);
+      move(36,DWIDTH+1);
       printw("SPACE = USE ITEM");
-      move(22,SWIDTH*2+1);
+      move(37,DWIDTH+1);
       printw("ATTACK = FORWARD");
       move(SWIDTH,0);
       xn=x+xd;
@@ -507,8 +526,9 @@ int main(int argc, char *argv[])
            if (end_turn(&player,x,y,xn,yn)==1) {
            attrset(A_NORMAL);
            endwin();
-           printf("YOU DIED!!! End of Game\n");
-           printf("You lasted %d steps and got to level %d\n\n",player.steps,level);
+           printf("GAME OVER!!!\n");
+           printf("You lasted %d steps and got to level %d\n",player.steps,level);
+           printf("Your final score = %d \n\n",player.steps+(level-1)*100);
            exit(0);
           }
          }
